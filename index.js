@@ -1,5 +1,5 @@
 const express = require('express');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 require('dotenv').config();
 const cors = require("cors");
@@ -33,6 +33,21 @@ async function run() {
     const database = client.db("bistro-restaurent");
     const foodMenu = database.collection("food-menu");
     const reviews = database.collection("review");
+    const cartcollection = database.collection("cart");
+    const userscollection = database.collection("users");
+
+    //get signle user route is here
+    app.get("/singleuser", async (req,res)=>{
+      const useremail = req.query.email;
+      const result = await userscollection.findOne({email: useremail});
+      res.send(result);
+    })
+
+    // get all user route is here
+    app.get('/getallusers',async(req,res)=>{
+      const result = await userscollection.find().toArray();
+      res.send(result);
+    })
 
     // All menu details is here
     app.get("/allmenusdetails", async(req,res)=>{
@@ -44,8 +59,49 @@ async function run() {
     app.get("/reviews", async(req,res)=>{
         const result = await reviews.find().toArray();
         res.send(result);
-    })
+    });
 
+    // load cart data route is here
+    app.get("/cartdata", async(req,res)=>{
+        const useremail = req.query.email;
+        const query = { userEmail:useremail }
+        const result = await cartcollection.find(query).toArray();
+        res.send(result);
+    });
+
+    // Cart colletion route is here
+    app.post("/usercart", async (req, res)=>{
+      try {
+        const item = req.body;
+        const result = await cartcollection.insertOne(item);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      };
+    });
+
+    // Delete cart items from cart route is here
+    app.delete("/deletecartitems", async(req,res)=>{
+        const itemID = req.query.id;
+        const query = {_id:new ObjectId(itemID)};
+        const result = await cartcollection.deleteOne(query);
+        res.send(result)
+    });
+
+    // set newuser route is here
+    app.post("/createnewuser", async(req,res)=>{
+      const useremail = req.query.email;
+      const user = req.body;
+      const exgist = await userscollection.findOne({email:useremail})
+      if(exgist){
+        res.send("already exgist user");
+        return;
+      }
+      const result = await userscollection.insertOne(user);
+      res.send(result);
+    })
+    
+    
 
 
 
