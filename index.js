@@ -3,10 +3,26 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 require("dotenv").config();
 const cors = require("cors");
+const jwt = require('jsonwebtoken');
 const port = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+
+const verifyToken =(req,res, next)=>{
+  const authtoken = req.headers.authtoken;
+  if(!authtoken){
+      return res.status(401).send({error:true, message: "Unauthorized Access!"})
+  };
+  const token = authtoken.split(' ')[1];
+  jwt.verify(token, process.env.DB_Access_token, (error, decoded)=>{
+    if(error){
+      return res.status(403).send({error:true, message: "Invalid Token access"});
+    }
+    req.decoded = decoded
+    next();
+  })
+};
 
 const uri = `mongodb+srv://${process.env.DB_user}:${process.env.DB_pass}@cluster0.85env82.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -35,6 +51,14 @@ async function run() {
     const cartcollection = database.collection("cart");
     const userscollection = database.collection("users");
 
+
+    // create jwt token route is here
+    app.post("/jwt",(req, res)=>{
+      const user = req.body;
+      const token = jwt.sign(user, process.env.DB_Access_token, {expiresIn: "1h"});
+      res.send(token);
+    })
+
     //get signle user route is here
     app.get("/singleuser", async (req, res) => {
       const useremail = req.query.email;
@@ -61,8 +85,12 @@ async function run() {
     });
 
     // load cart data route is here
-    app.get("/cartdata", async (req, res) => {
+    app.get("/cartdata",verifyToken, async (req, res) => {
       const useremail = req.query.email;
+      const decodedEmail = req.decoded.email;
+      if(useremail  !== decodedEmail){
+          return res.status(403).send({error:true, message: "forbidden Access"})
+      };
       const query = { userEmail: useremail };
       const result = await cartcollection.find(query).toArray();
       res.send(result);
