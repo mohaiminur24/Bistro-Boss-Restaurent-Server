@@ -45,6 +45,17 @@ async function run() {
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
 
+
+    // verfify Admin 
+    const verifyAdmin = async(req,res,next)=>{
+        const tokenEmail = req.decoded.email;
+        const result = await userscollection.findOne({email:tokenEmail})
+        if(result.role !== "admin"){
+          return res.status(403).send({error:true, message:'unauthorize admin access!'});
+        }
+        next();
+    };
+
     const database = client.db("bistro-restaurent");
     const foodMenu = database.collection("food-menu");
     const reviews = database.collection("review");
@@ -57,17 +68,17 @@ async function run() {
       const user = req.body;
       const token = jwt.sign(user, process.env.DB_Access_token, {expiresIn: "1h"});
       res.send(token);
-    })
+    });
 
     //get signle user route is here
-    app.get("/singleuser", async (req, res) => {
+    app.get("/singleuser",verifyToken, async (req, res) => {
       const useremail = req.query.email;
       const result = await userscollection.findOne({ email: useremail });
       res.send(result);
     });
 
     // get all user route is here
-    app.get("/getallusers", async (req, res) => {
+    app.get("/getallusers",verifyToken,verifyAdmin, async (req, res) => {
       const result = await userscollection.find().toArray();
       res.send(result);
     });
@@ -97,7 +108,7 @@ async function run() {
     });
 
     // Cart colletion route is here
-    app.post("/usercart", async (req, res) => {
+    app.post("/usercart",verifyToken, async (req, res) => {
       try {
         const item = req.body;
         const result = await cartcollection.insertOne(item);
@@ -108,7 +119,7 @@ async function run() {
     });
 
     // Delete cart items from cart route is here
-    app.delete("/deletecartitems", async (req, res) => {
+    app.delete("/deletecartitems",verifyToken, async (req, res) => {
       const itemID = req.query.id;
       const query = { _id: new ObjectId(itemID) };
       const result = await cartcollection.deleteOne(query);
@@ -129,7 +140,7 @@ async function run() {
     });
 
     // handle user role route is here
-    app.post("/updateuserrole", async (req, res) => {
+    app.post("/updateuserrole",verifyToken,verifyAdmin,async (req, res) => {
       try {
         const useremail = req.query.email;
         const newrRole = req.query.role;
@@ -145,7 +156,7 @@ async function run() {
     });
 
     // userdelete route is here
-    app.delete("/deletesingleuser", async (req,res)=>{
+    app.delete("/deletesingleuser",verifyToken,verifyAdmin, async (req,res)=>{
       const userid = req.query.id;
       const query = {_id: new ObjectId(userid)};
       const result = await userscollection.deleteOne(query);
