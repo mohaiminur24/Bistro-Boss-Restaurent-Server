@@ -163,6 +163,13 @@ async function run() {
       res.send(result);
     })
 
+    // addnew items in database
+    app.post("/additem", verifyToken,verifyAdmin, async(req,res)=>{
+      const newitem = req.body;
+      const result = await foodMenu.insertOne(newitem);
+      res.send(result);
+    })
+
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
